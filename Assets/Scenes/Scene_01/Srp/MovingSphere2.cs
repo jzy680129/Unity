@@ -21,7 +21,11 @@ public class MovingSphere2 : MonoBehaviour
     float maxSpeed = 10;
     [SerializeField,Range(0f,100f)]
     float maxAcceleration = 10;
-    Vector3 velocity;
+    Vector3 velocity,desiredVelocity;
+
+
+    //跳跃
+    bool desiredJump;
 
     Rigidbody rigidbody;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
@@ -40,18 +44,33 @@ public class MovingSphere2 : MonoBehaviour
 
         Vector3 acceleration = new Vector3(playerInput.x, 0, playerInput.y) * maxAcceleration;
 
-        Vector3 desiredVelocity = new Vector3(playerInput.x, 0, playerInput.y) * maxSpeed;
+        desiredVelocity = new Vector3(playerInput.x, 0, playerInput.y) * maxSpeed;
 
+       
+        //跳跃
+        desiredJump |= Input.GetButtonDown("Jump");
+    }
+    void FixedUpdate()
+    {
         //最大加速度
         float maxSpeedChange = maxAcceleration * Time.deltaTime;
-
+        if(desiredJump)
+        {
+                desiredJump = false;
+                Jump();
+        }
         velocity = rigidbody.linearVelocity;
         // 使用Mathf.MoveTowards来限制速度变化
         velocity.x = Mathf.MoveTowards(velocity.x, desiredVelocity.x, maxSpeedChange);
         velocity.z = Mathf.MoveTowards(velocity.z, desiredVelocity.z, maxSpeedChange);
         
         rigidbody.linearVelocity = velocity;
+        
+    }
 
+    void Jump()
+    {
+        velocity.y +=5f;
     }
 
     void OnDrawGizmosSelected()
