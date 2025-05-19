@@ -4,6 +4,15 @@ public class MovingSphere2 : MonoBehaviour
 {
 
 
+    /*
+    如果我们想使用物理引擎，那么我们应该让它控制球体的位置。直接调整位置实际上相当于进行空间传送，这并非我们想要的效果。
+    相反，我们必须间接地控制球体，要么施加力，要么调整其速度。
+    我们已经实现了对位置的间接控制，因为我们影响的是速度。
+    现在，我们想使用物理引擎来控制球体。
+    为此，我们需要使用Rigidbody组件。
+    我们还需要禁用球体的Transform组件，因为物理引擎会控制它的位置。
+    
+    */
     [SerializeField]
     Rect allowedArea = new Rect(-4.5f, -4.5f, 9f, 9f);
 	[SerializeField, Range(0f, 1f)]
@@ -13,10 +22,12 @@ public class MovingSphere2 : MonoBehaviour
     [SerializeField,Range(0f,100f)]
     float maxAcceleration = 10;
     Vector3 velocity;
+
+    Rigidbody rigidbody;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        
+        rigidbody = GetComponent<Rigidbody>();
     }
 
     // Update is called once per frame
@@ -31,37 +42,15 @@ public class MovingSphere2 : MonoBehaviour
 
         Vector3 desiredVelocity = new Vector3(playerInput.x, 0, playerInput.y) * maxSpeed;
 
+        //最大加速度
         float maxSpeedChange = maxAcceleration * Time.deltaTime;
 
+        velocity = rigidbody.linearVelocity;
+        // 使用Mathf.MoveTowards来限制速度变化
         velocity.x = Mathf.MoveTowards(velocity.x, desiredVelocity.x, maxSpeedChange);
         velocity.z = Mathf.MoveTowards(velocity.z, desiredVelocity.z, maxSpeedChange);
-
-        //移动的距离
-        Vector3 displacement = velocity * Time.deltaTime;
-        //移动
-        Vector3 newPosition = transform.localPosition + displacement;
-        //限制移动范围
-        if(newPosition.x < allowedArea.xMin)
-        {
-            newPosition.x = allowedArea.xMin;
-            velocity.x = -velocity.x*bounciness;
-        }
-        else if(newPosition.x > allowedArea.xMax)
-        {
-            newPosition.x = allowedArea.xMax;
-            velocity.x = -velocity.x*bounciness;
-        }
-        if(newPosition.z < allowedArea.yMin)
-        {
-            newPosition.z = allowedArea.yMin;
-            velocity.z = -velocity.z*bounciness;
-        }
-        else if(newPosition.z > allowedArea.yMax)
-        {
-            newPosition.z = allowedArea.yMax;
-            velocity.z = -velocity.z*bounciness;
-        }
-        transform.localPosition = newPosition;
+        
+        rigidbody.linearVelocity = velocity;
 
     }
 
