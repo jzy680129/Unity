@@ -24,19 +24,39 @@ public class MovingSphere2 : MonoBehaviour
     Vector3 velocity,desiredVelocity;
 
 
+    bool onGround;
+
+    [SerializeField]
+    float jumpHeight = 2f;
+    [SerializeField,Range(0,3)]
+    int maxAirJumps = 0;
+
+    int jumpPhase;
+
+    [SerializeField,Range(0f,90f)]
+    //最大地面角度
+    float maxGroundAngle = 25f;
+    float minGroundDotProduct;
     //跳跃
     bool desiredJump;
+    //接触点法线
+    Vector3 contactNormal;
 
     Rigidbody rigidbody;
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    void OnValidate () {
+		minGroundDotProduct = Mathf.Cos(maxGroundAngle * Mathf.Deg2Rad);
+	}
     void Start()
     {
         rigidbody = GetComponent<Rigidbody>();
+        OnValidate();
     }
 
     // Update is called once per frame
     void Update()
     {
+        desiredJump = false;
+
         Vector2 playerInput;
         playerInput.x = Input.GetAxis("Horizontal");
         playerInput.y = Input.GetAxis("Vertical");
@@ -54,24 +74,55 @@ public class MovingSphere2 : MonoBehaviour
     {
         //最大加速度
         float maxSpeedChange = maxAcceleration * Time.deltaTime;
-        if(desiredJump)
+       
+        UpdateState();
+    
+        if(desiredJump && onGround)
         {
-                desiredJump = false;
-                Jump();
+            desiredJump = false;
+            Jump();
         }
-        velocity = rigidbody.linearVelocity;
         // 使用Mathf.MoveTowards来限制速度变化
         velocity.x = Mathf.MoveTowards(velocity.x, desiredVelocity.x, maxSpeedChange);
         velocity.z = Mathf.MoveTowards(velocity.z, desiredVelocity.z, maxSpeedChange);
-        
-        rigidbody.linearVelocity = velocity;
-        
+        if(desiredVelocity.x != 0 || desiredVelocity.z != 0||desiredVelocity.y != 0)
+        {
+            rigidbody.linearVelocity = velocity;
+        }
+       
     }
+
+    void UpdateState () {
+		velocity = rigidbody.linearVelocity;
+		if (onGround) {
+			jumpPhase = 0;
+		}
+
+	}
 
     void Jump()
     {
-        velocity.y +=5f;
+        //在地面或者跳跃次数小于最大跳跃次数，都可以跳跃
+        if(onGround || jumpPhase < maxAirJumps)
+        {
+            jumpPhase++;
+            
+            // 使用接触点法线方向进行跳跃，而不是仅垂直方向
+            float jumpSpeed = Mathf.Sqrt(-2f * Physics.gravity.y * jumpHeight);
+            // 计算当前在跳跃方向上的速度分量
+            float alignedSpeed = Vector3.Dot(velocity, contactNormal);
+            // 如果已经有向上的速度，只添加差值
+            if (alignedSpeed > 0f) {
+                jumpSpeed = Mathf.Max(jumpSpeed - alignedSpeed, 0f);
+            }
+            // 添加跳跃速度到接触点法线方向
+            velocity += contactNormal * jumpSpeed;
+        }
     }
+
+    Vector3 ProjectOnContactPlane (Vector3 vector) {
+		return vector - contactNormal * Vector3.Dot(vector, contactNormal);
+	}
 
     void OnDrawGizmosSelected()
     {
@@ -93,5 +144,34 @@ public class MovingSphere2 : MonoBehaviour
         Gizmos.color = new Color(1f, 1f, 0f, 0.2f);
         Gizmos.DrawCube(new Vector3(allowedArea.center.x, 0, allowedArea.center.y), 
                         new Vector3(allowedArea.width, 0.1f, allowedArea.height));
+    }
+
+    void OnCollisionEnter(Collision collision)
+    {
+        EvaluateCollision(collision);
+    }
+
+    void OnCollisionExit(Collision collision)
+    {
+        EvaluateCollision(collision);
+    }
+
+    //评估碰撞,通过接触点的Y轴判断是否在地面
+    void EvaluateCollision(Collision collision)
+    {
+        for(int i = 0; i < collision.contactCount; i++)
+        {
+            Vector3 normal = collision.GetContact(i).normal;
+            //如果法线Y轴大于最大地面角度，则认为在地面,（可以起跳
+            if (normal.y >= minGroundDotProduct) {
+				onGround = true;
+				contactNormal = normal;
+			}
+            //如果法线Y轴小于最大地面角度，则认为在空中
+            else
+            {
+                contactNormal = Vector3.up;
+            }
+        }
     }
 }
